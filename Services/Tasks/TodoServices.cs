@@ -26,30 +26,65 @@ public sealed class TodoServices(
         }
     }
 
-    public Task DeleteTodoAsync(Guid id)
+    public async Task DeleteTodoAsync(Guid id)
     {
-        throw new NotImplementedException();
+        var todo = await _context.Todos.FindAsync(id) 
+            ?? throw new NotFoundException($"No  item found with the id {id}");
+        
+        _context.Todos.Remove(todo);
+        await _context.SaveChangesAsync();
     }
 
-    public async Task<IEnumerable<Todo>> GetAllAsync()
-    {
-        var todos = await _context.Todos.ToListAsync();
-
-        if (todos is null)
-        {
+    public async Task<IEnumerable<Todo>> GetAllAsync() =>
+        await _context.Todos.ToListAsync() ??
             throw new NotFoundException("No Todo items found");
+
+    public async Task<Todo> GetByIdAsync(Guid id) =>
+        await _context.Todos.FindAsync(id) ??
+            throw new NotFoundException($"No Todo item with Id {id} found.");
+
+    public async Task UpdateTodoAsync(Guid id, UpdateTodoRequest request)
+    {
+        try
+        {
+            var todo =
+                await _context.Todos.FindAsync(id) ??
+                throw new NotFoundException($"Todo item with id {id} not found.");
+
+
+            if (!string.IsNullOrEmpty(request.Title))
+            {
+                todo.Title = request.Title;
+            }
+
+            if (!string.IsNullOrEmpty(request.Description))
+            {
+                todo.Description = request.Description;
+            }
+
+            if (request.IsComplete is not null)
+            {
+                todo.IsComplete = request.IsComplete.Value;
+            }
+
+            if (request.DueDate is not null)
+            {
+                todo.DueDate = request.DueDate.Value;
+            }
+
+            if (request.Priority is not null)
+            {
+                todo.Priority = request.Priority.Value;
+            }
+
+            todo.UpdatedAt = DateTime.Now;
+
+            await _context.SaveChangesAsync();
         }
-
-        return todos;
-    }
-
-    public Task<Todo> GetByIdAsync(Guid id)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task UpdateTodoAsync(Guid id, UpdateTodoRequest request)
-    {
-        throw new NotImplementedException();
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"An error occurred while updating the todo item with id {id}.");
+            throw;
+        }
     }
 }
